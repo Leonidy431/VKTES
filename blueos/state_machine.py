@@ -2,12 +2,13 @@
 Конечный автомат (State Machine) режимов работы дрона Борей.
 
 Состояния:
-    IDLE       — Ожидание на земле, зарядка ионисторов
-    SURVEY     — Облёт крыши, построение карты поверхности
-    TRANSIT    — Перелёт к точке начала очередной дорожки
-    BULLDOZER  — Активная уборка снега (толкание к краю)
-    RETREAT    — Возврат на точку зарядки
-    EMERGENCY  — Аварийный режим (отстыковка отвала, зависание)
+    IDLE        — Ожидание на земле, зарядка ионисторов
+    SURVEY      — Облёт крыши, построение карты поверхности
+    TRANSIT     — Перелёт к точке начала очередной дорожки
+    BULLDOZER   — Активная уборка снега (толкание к краю)
+    HOVER_BLOW  — Обдув рыхлого снега зависанием (без контакта)
+    RETREAT     — Возврат на точку зарядки
+    EMERGENCY   — Аварийный режим (отстыковка отвала, зависание/посадка)
 """
 
 import enum
@@ -22,16 +23,17 @@ class State(enum.Enum):
     SURVEY = "SURVEY"
     TRANSIT = "TRANSIT"
     BULLDOZER = "BULLDOZER"
+    HOVER_BLOW = "HOVER_BLOW"
     RETREAT = "RETREAT"
     EMERGENCY = "EMERGENCY"
 
 
-# Допустимые переходы между состояниями
 TRANSITIONS: dict[State, set[State]] = {
     State.IDLE: {State.SURVEY, State.TRANSIT, State.EMERGENCY},
     State.SURVEY: {State.TRANSIT, State.IDLE, State.EMERGENCY},
-    State.TRANSIT: {State.BULLDOZER, State.RETREAT, State.EMERGENCY},
+    State.TRANSIT: {State.BULLDOZER, State.HOVER_BLOW, State.RETREAT, State.EMERGENCY},
     State.BULLDOZER: {State.RETREAT, State.TRANSIT, State.EMERGENCY},
+    State.HOVER_BLOW: {State.RETREAT, State.TRANSIT, State.EMERGENCY},
     State.RETREAT: {State.IDLE, State.EMERGENCY},
     State.EMERGENCY: {State.IDLE},
 }
@@ -44,6 +46,7 @@ class StateMachine:
         self._state = State.IDLE
         self._state_enter_time = time.monotonic()
         self._listeners: list = []
+        self._history: list[tuple[float, State, State]] = []
 
     @property
     def state(self) -> State:
@@ -51,19 +54,16 @@ class StateMachine:
 
     @property
     def time_in_state(self) -> float:
-        """Время (с) пребывания в текущем состоянии."""
         return time.monotonic() - self._state_enter_time
 
+    @property
+    def history(self) -> list[tuple[float, State, State]]:
+        return self._history
+
     def add_listener(self, callback) -> None:
-        """Добавить слушателя переходов. callback(old_state, new_state)."""
         self._listeners.append(callback)
 
     def transition_to(self, new_state: State) -> bool:
-        """
-        Попытка перехода в новое состояние.
-
-        Возвращает True если переход выполнен, False если переход недопустим.
-        """
         if new_state == self._state:
             return True
 
@@ -80,6 +80,7 @@ class StateMachine:
         old_state = self._state
         self._state = new_state
         self._state_enter_time = time.monotonic()
+        self._history.append((time.monotonic(), old_state, new_state))
 
         logger.info("Переход: %s → %s", old_state.value, new_state.value)
 
@@ -92,10 +93,10 @@ class StateMachine:
         return True
 
     def force_emergency(self) -> None:
-        """Принудительный переход в EMERGENCY из любого состояния."""
         old = self._state
         self._state = State.EMERGENCY
         self._state_enter_time = time.monotonic()
+        self._history.append((time.monotonic(), old, State.EMERGENCY))
         logger.critical("EMERGENCY из состояния %s", old.value)
         for cb in self._listeners:
             try:
