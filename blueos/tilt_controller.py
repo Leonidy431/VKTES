@@ -80,6 +80,20 @@ class TiltController:
         """Достаточно ли вертикальной тяги для взлёта (>2:1)."""
         return self.vertical_thrust_kgf > config.DRONE_WEIGHT_KG * 2.0
 
+    def set_target(self, angle_deg: float) -> None:
+        """Установить целевой угол наклона (кламп к [TILT_MIN_DEG, TILT_MAX_DEG])."""
+        self._target_angle_deg = max(
+            config.TILT_MIN_DEG, min(config.TILT_MAX_DEG, angle_deg)
+        )
+
+    def get_thrust_components(self, angle_deg: float) -> tuple[float, float]:
+        """Горизонтальная и вертикальная составляющие тяги при заданном угле (кгс)."""
+        rad = math.radians(max(config.TILT_MIN_DEG, min(config.TILT_MAX_DEG, angle_deg)))
+        return (
+            config.MAX_STATIC_THRUST_KGF * math.sin(rad),
+            config.MAX_STATIC_THRUST_KGF * math.cos(rad),
+        )
+
     def set_snow_type(self, snow_type: SnowType) -> None:
         """Установить тип снега (от тепловизора / Hailo)."""
         self._snow_type = snow_type

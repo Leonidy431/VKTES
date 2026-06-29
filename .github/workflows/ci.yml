@@ -1,0 +1,104 @@
+name: Boreas BlueOS CI
+
+on:
+  push:
+    branches: [main, master, "claude/**", "dev/**"]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dev dependencies
+        run: pip install ruff mypy types-all
+
+      - name: Ruff lint
+        run: ruff check blueos/ tests/
+
+      - name: Ruff format check
+        run: ruff format --check blueos/ tests/
+
+      - name: mypy strict
+        run: mypy blueos/ --strict --ignore-missing-imports
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install pytest pytest-cov
+
+      - name: Run unit tests (excluding safety)
+        run: |
+          pytest tests/ -m "not safety" \
+            --cov=blueos \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --tb=short \
+            -q
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+
+  safety-tests:
+    name: Safety-Critical Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install pytest
+
+      - name: Run safety-marked tests
+        run: |
+          pytest tests/test_safety_monitor.py -m safety \
+            --tb=long \
+            -v
+
+  coverage-gate:
+    name: Coverage Gate (≥70%)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install pytest pytest-cov
+
+      - name: Check coverage threshold
+        run: |
+          pytest tests/ -m "not safety" \
+            --cov=blueos \
+            --cov-fail-under=70 \
+            -q

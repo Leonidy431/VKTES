@@ -24,6 +24,7 @@ import math
 from dataclasses import dataclass, field
 
 from . import config
+from .utils import point_in_polygon, in_obstacle_zone
 
 logger = logging.getLogger(__name__)
 
@@ -126,9 +127,9 @@ class HoverBlowController:
 
             while x <= x_max:
                 # Проверка: точка внутри полигона?
-                if self._point_in_polygon(x, y, roof_vertices):
+                if point_in_polygon(x, y, roof_vertices):
                     # Проверка: не в зоне препятствия?
-                    if not self._in_obstacle_zone(x, y, obstacles):
+                    if not in_obstacle_zone(x, y, obstacles, config.OBSTACLE_BUFFER_M):
                         row_points.append(BlowPoint(x=x, y=y))
                 x += step
 
@@ -235,31 +236,3 @@ class HoverBlowController:
             depth_mm, self._altitude_m, self._throttle_pct,
         )
 
-    @staticmethod
-    def _point_in_polygon(
-        x: float, y: float, vertices: list[tuple[float, float]],
-    ) -> bool:
-        """Ray casting."""
-        n = len(vertices)
-        inside = False
-        j = n - 1
-        for i in range(n):
-            xi, yi = vertices[i]
-            xj, yj = vertices[j]
-            if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
-                inside = not inside
-            j = i
-        return inside
-
-    @staticmethod
-    def _in_obstacle_zone(
-        x: float, y: float,
-        obstacles: list[tuple[float, float, float]] | None,
-    ) -> bool:
-        """Проверка попадания в буферную зону препятствия."""
-        if not obstacles:
-            return False
-        for ox, oy, radius in obstacles:
-            if math.hypot(x - ox, y - oy) < radius + config.OBSTACLE_BUFFER_M:
-                return True
-        return False

@@ -108,6 +108,21 @@ class SafetyMonitor:
         return self._fault
 
     @property
+    def last_fault(self) -> FaultType:
+        """Последний зафиксированный тип неисправности."""
+        return self._fault
+
+    @property
+    def _contactor_open(self) -> bool:
+        """True если контактор разомкнут (питание отключено)."""
+        return not self._contactor_commanded
+
+    @_contactor_open.setter
+    def _contactor_open(self, value: bool) -> None:
+        self._contactor_commanded = not value
+        self._power_enabled = not value
+
+    @property
     def is_power_safe(self) -> bool:
         """Безопасно ли подавать питание?"""
         return self._state in (SafetyState.OK, SafetyState.WARNING)

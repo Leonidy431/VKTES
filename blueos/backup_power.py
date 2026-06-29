@@ -51,6 +51,9 @@ class BackupPowerManager:
     - Команду на аварийную посадку при исчерпании резерва
     """
 
+    # Мощность зависания (Вт) для расчёта времени аварийного полёта
+    _HOVER_POWER_W = 5000.0
+
     def __init__(self, backup_type: str | None = None) -> None:
         self._type = BackupType(backup_type or config.BACKUP_TYPE)
         self._state = BackupState.STANDBY
@@ -63,6 +66,7 @@ class BackupPowerManager:
         self._tether_was_connected: bool = True
         self._emergency_flight_start: float = 0.0
         self._last_health_check: float = 0.0
+        self._max_flight_sec: float = config.BACKUP_EMERGENCY_FLIGHT_SEC  # переопределяется ниже
 
         # Расчёт параметров по типу
         if self._type == BackupType.LIPO:
@@ -74,16 +78,23 @@ class BackupPowerManager:
                 * self._nominal_voltage
             )  # ~111 Вт·ч
             self._weight_kg = config.BACKUP_LIPO_WEIGHT_KG
+            self._max_flight_sec = min(
+                (self._capacity_wh * 3600.0) / self._HOVER_POWER_W,
+                config.BACKUP_EMERGENCY_FLIGHT_SEC,
+            )  # ~80с → ограничено до 45с
 
         elif self._type == BackupType.SUPERCAP:
-            self._nominal_voltage = config.BACKUP_SUPERCAP_V * config.BACKUP_SUPERCAP_SERIES
+            # BCAP3000 ×6 последовательно: C = C_single / N = 3000/6 = 500 Ф
+            # V_max = N × V_single = 6 × 2.7 = 16.2 В
+            # E = 0.5 × C × V² = 0.5 × 500 × 16.2² = 65 610 Дж ≈ 18.2 Вт·ч
+            cap_series = config.BACKUP_SUPERCAP_F / config.BACKUP_SUPERCAP_SERIES  # 500 Ф
+            self._nominal_voltage = config.BACKUP_SUPERCAP_V * config.BACKUP_SUPERCAP_SERIES  # 16.2 В
             self._max_voltage = self._nominal_voltage
-            self._min_voltage = self._nominal_voltage * 0.5
-            cap_series = config.BACKUP_SUPERCAP_F / config.BACKUP_SUPERCAP_SERIES
-            self._capacity_wh = (
-                0.5 * cap_series * self._nominal_voltage ** 2
-            ) / 3600.0
+            self._min_voltage = self._nominal_voltage * 0.5  # 8.1 В (нижняя граница)
+            self._capacity_wh = (0.5 * cap_series * self._nominal_voltage ** 2) / 3600.0
             self._weight_kg = 0.5 * config.BACKUP_SUPERCAP_SERIES
+            # ~13с при 5 кВт (65 610 Дж / 5000 Вт) — короче, чем LiPo!
+            self._max_flight_sec = (self._capacity_wh * 3600.0) / self._HOVER_POWER_W
 
         else:  # HYBRID
             self._nominal_voltage = config.BACKUP_LIPO_CELLS * 3.7
@@ -94,6 +105,10 @@ class BackupPowerManager:
                 * self._nominal_voltage
             )
             self._weight_kg = config.BACKUP_LIPO_WEIGHT_KG + 0.3  # +ионистор
+            self._max_flight_sec = min(
+                (self._capacity_wh * 3600.0) / self._HOVER_POWER_W,
+                config.BACKUP_EMERGENCY_FLIGHT_SEC,
+            )
 
     @property
     def state(self) -> BackupState:
@@ -128,10 +143,10 @@ class BackupPowerManager:
     def emergency_time_remaining_sec(self) -> float:
         """Оставшееся время аварийного полёта (с)."""
         if self._state != BackupState.ACTIVE:
-            return config.BACKUP_EMERGENCY_FLIGHT_SEC
+            return self._max_flight_sec
 
         elapsed = time.monotonic() - self._emergency_flight_start
-        remaining = config.BACKUP_EMERGENCY_FLIGHT_SEC - elapsed
+        remaining = self._max_flight_sec - elapsed
         return max(0.0, remaining)
 
     @property
@@ -197,7 +212,7 @@ class BackupPowerManager:
             self._type.value,
             self._voltage,
             self._capacity_remaining_pct,
-            config.BACKUP_EMERGENCY_FLIGHT_SEC,
+            self._max_flight_sec,
         )
 
     def _check_health(self) -> None:
