@@ -1,0 +1,73 @@
+{
+  "feature": "example_feature_name",
+  "problem_statement": "Brief description of the problem being solved",
+  "chosen_algorithm": "Name of selected algorithm",
+  "alternatives_considered": [
+    "Candidate A (brief desc)",
+    "Candidate B (brief desc)",
+    "Candidate C (brief desc)"
+  ],
+  "decision_date": "2026-07-24",
+  "decision_phase": "Phase 12: Deployment",
+  "specialists_involved": [
+    {
+      "role": "Roboticist",
+      "expertise": "UAV control, dynamics"
+    },
+    {
+      "role": "CV-Expert",
+      "expertise": "Computer vision, image processing"
+    },
+    {
+      "role": "Embedded-Systems",
+      "expertise": "Real-time constraints, Python optimization"
+    },
+    {
+      "role": "Domain-Expert",
+      "expertise": "Snow physics, thermal properties"
+    }
+  ],
+  "papers_cited": [
+    {
+      "title": "Paper title",
+      "authors": "Author et al.",
+      "year": 2024,
+      "doi": "https://doi.org/10.xxxx/xxxxx",
+      "key_finding": "Brief summary of relevant finding"
+    }
+  ],
+  "evaluation_matrix": {
+    "file": "docs/algorithm_research/feature_name_matrix.csv",
+    "note": "48-parameter evaluation matrix with specialist scores"
+  },
+  "candidate_scores": {
+    "Candidate A": 7.2,
+    "Candidate B": 8.1,
+    "Candidate C": 9.4
+  },
+  "chosen_score": 9.4,
+  "rationale": "Best balance of real-time constraints, accuracy, power efficiency, and EMI robustness. Validated by PoC on field data.",
+  "poc_results": {
+    "accuracy_vs_predicted": "±12% (predicted ±15%)",
+    "latency_ms": 48,
+    "power_w": 0.8,
+    "issues_found": "None critical",
+    "test_dataset": "docs/algorithm_research/test_data_snow_depth.tar.gz"
+  },
+  "implementation_file": "blueos/example.py",
+  "test_file": "tests/test_example.py",
+  "config_params": [
+    {
+      "name": "ALGORITHM_PARAM_1",
+      "value": 0.5,
+      "unit": "dimensionless",
+      "source": "Paper reference (DOI), Phase 4 research"
+    }
+  ],
+  "known_limitations": [
+    "Limitation 1: Desc and mitigation",
+    "Limitation 2: Desc and mitigation"
+  ],
+  "next_review_date": "2026-10-24",
+  "next_review_trigger": "After 100 hours flight time or algorithm drift >5%"
+}

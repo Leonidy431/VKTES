@@ -86,6 +86,105 @@ pytest tests/ --cov=blueos --cov-report=term-missing
 
 Coverage target: ≥70 % on `blueos/`. CI gate enforced in `.github/workflows/ci.yml`.
 
+## Algorithm Selection & Validation — 12-Phase HLD
+
+**Rule: Every algorithm implementation follows evidence-based selection via multi-expert consensus.**
+
+When implementing algorithms (pathfinding, snow detection, tilt control, etc.):
+
+### Phase 1–3: Research & Literature Review
+- Search **PubMed** / **Google Scholar** for peer-reviewed papers on the problem
+- Collect ≥5 papers from domain: robotics, autonomous systems, control theory, snow/ice physics
+- Document findings in `docs/algorithm_research/{feature_name}.md`
+  - Citations with DOI
+  - Key parameters & thresholds from papers
+  - Limitations noted by authors
+
+### Phase 4–6: Candidate Algorithm Pool
+- Identify ≥3 candidate algorithms from literature or well-known approaches
+- Example: For snow depth estimation:
+  - Candidate A: LiDAR height subtraction (simple, fast)
+  - Candidate B: Convolutional depth estimation (accurate, slow)
+  - Candidate C: Fusion of LiDAR + thermal + video (comprehensive, complex)
+
+### Phase 7–9: Expert Evaluation Matrix (48 Parameters)
+Assemble **N ≥ 4 domain specialists** (real or simulated AI agents). Score each candidate on:
+
+**Core Performance (12 params):**
+- Accuracy vs. ground truth (RMSE/MAE)
+- Latency (ms)
+- Throughput (ops/sec)
+- CPU/RAM utilization (%)
+- Power consumption (W)
+- Noise robustness (dB SNR)
+- Temperature range coverage (-40°C to +40°C)
+- Tuning difficulty (1–10)
+- Scalability (computational complexity)
+- Reproducibility (variance across runs)
+- Failure mode severity
+- Recovery time
+
+**Integration & Safety (12 params):**
+- Real-time guarantees (hard/soft/none)
+- Thread safety
+- Memory leaks risk
+- GFCI/electrical safety impact
+- Hardware dependencies (list)
+- Sensor availability
+- Fallback behavior
+- Cross-module coupling
+
+**Operational (12 params):**
+- Training data requirements (hours)
+- Calibration time (minutes)
+- Weather robustness (sleet, fog, wind)
+- Maintenance frequency
+- Debugging difficulty
+- Field adaptability
+- Cost of compute hardware
+- Certification readiness (CE/IEC)
+
+**Domain-Specific (12 params):**
+For snow/tilt/thermal:
+- Snow type sensitivity (powder/settled/wet/ice)
+- Altitude/gravity effects
+- Tether electromagnetic interference (EMI)
+- Roof surface variation (metal/concrete/shingles)
+- Wind loading interaction
+- Thermal camera FOV limitations
+- Hailo-8L latency constraints
+- Drift over 8-hour flight
+
+### Phase 10: Consensus Vote
+- Each specialist assigns **score ∈ [0, 10]** per parameter
+- Candidates ranked by **weighted mean**: favored parameters weighted higher
+- **Tie-breaking rule**: Lower computational cost + smaller code footprint wins
+- **Disagreement threshold**: If specialists diverge >3 points on any param, require discussion
+
+### Phase 11: Proof of Concept (PoC)
+- Implement top-2 candidates in isolated `blueos/experimental/{algo_name}.py`
+- Run against test dataset (synthetic + real field data)
+- Document performance vs. predicted matrix scores
+- If reality diverges >15% from matrix, revisit Phase 7–9
+
+### Phase 12: Deployment & Documentation
+- Lock chosen algorithm in production code
+- Store decision record: `docs/algorithm_decisions/{feature}.json`
+  ```json
+  {
+    "feature": "snow_depth_estimation",
+    "chosen_algorithm": "LiDAR + thermal fusion",
+    "decision_date": "2026-07-24",
+    "specialists": ["roboticist", "CV-expert", "embedded-systems", "snow-physicist"],
+    "matrix_file": "docs/algorithm_research/snow_depth_matrix.csv",
+    "papers_cited": ["https://doi.org/10.1016/...", "https://arxiv.org/..."],
+    "scores": {"Candidate A": 7.2, "Candidate B": 8.1, "Candidate C": 9.4},
+    "rationale": "Best balance of real-time + accuracy + power; lower EMI sensitivity"
+  }
+  ```
+
+---
+
 ## Useful skills (alirezarezvani/claude-skills)
 
 When working on specific areas of this codebase, these skills add targeted expertise:
@@ -98,3 +197,5 @@ When working on specific areas of this codebase, these skills add targeted exper
 | Reliability / SLO targets | `slo-architect` |
 | CI/CD pipeline design | `workflow-builder` |
 | Physics / domain validation | General research + `deep-research` |
+| Algorithm evaluation & papers | `deep-research` (multi-modal sweep) |
+| Expert consensus modeling | General-purpose agent (simulate N specialists) |
