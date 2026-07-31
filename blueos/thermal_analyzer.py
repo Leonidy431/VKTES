@@ -252,7 +252,10 @@ class ThermalAnalyzer:
             region.confidence = 0.8
             return SnowType.WET
 
-        if fresh_hi < t < wet_hi and std < 3.0:
+        if fresh_hi < t < wet_hi and std < 3.0:  # pragma: no cover
+            # Unreachable while THERMAL_SNOW_TEMP_FRESH_C[1] == THERMAL_SNOW_TEMP_WET_C[0]:
+            # every t in (fresh_hi, wet_hi) already satisfies the wet_lo<=t<=wet_hi
+            # check above, which returns first. Kept for when the config ranges diverge.
             region.confidence = 0.7
             return SnowType.SETTLED
 

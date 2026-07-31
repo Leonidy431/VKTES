@@ -1,0 +1,118 @@
+{
+  "_meta": {
+    "description": "Динамическая карта зависимостей blueos/. Даёт агенту понимание, какие модули зависят от того файла, который он сейчас редактирует — до полного чтения кода. Обновлять вручную при добавлении/удалении import-ов между модулями blueos/*.py (это не полный AST, а граф уровня import-ов между собственными модулями пакета).",
+    "generated_for_commit": "see git log — regenerate after structural changes",
+    "regeneration_hint": "grep -n '^from \\.\\|^import ' blueos/*.py"
+  },
+  "package": "blueos",
+  "entry_point": "blueos/main.py",
+  "nodes": {
+    "blueos/config.py": {
+      "role": "Все константы проекта. Не содержит логики.",
+      "imports": [],
+      "imported_by": [
+        "blueos/perception.py", "blueos/planner.py", "blueos/power_manager.py",
+        "blueos/mavlink_interface.py", "blueos/tilt_controller.py",
+        "blueos/burst_vibrator.py", "blueos/safety_monitor.py",
+        "blueos/backup_power.py", "blueos/thermal_analyzer.py",
+        "blueos/hover_blow.py", "blueos/main.py"
+      ],
+      "test_file": null,
+      "note": "Изменение любой константы здесь потенциально влияет на 11 модулей и main.py. См. CLAUDE.md 'Key constants'."
+    },
+    "blueos/utils.py": {
+      "role": "Общие геометрические функции (point_in_polygon, in_obstacle_zone, polygon_area, polygon_centroid, bounding_box).",
+      "imports": [],
+      "imported_by": ["blueos/hover_blow.py"],
+      "test_file": "tests/test_utils.py",
+      "note": "perception.py и planner.py содержат СВОИ КОПИИ point_in_polygon-подобной логики внутри RoofBoundary — не мигрированы на utils.py. Известное расхождение, см. CLAUDE.md known issues."
+    },
+    "blueos/state_machine.py": {
+      "role": "FSM с 7 состояниями (IDLE/SURVEY/TRANSIT/BULLDOZER/HOVER_BLOW/RETREAT/EMERGENCY).",
+      "imports": [],
+      "imported_by": ["blueos/main.py"],
+      "test_file": "tests/test_state_machine.py",
+      "note": "TRANSITIONS — единственный источник истины о допустимых переходах. Любой новый sm.transition_to() вызов в main.py должен быть сверен с этим словарём, иначе переход тихо провалится (return False) и оставит контроллер в текущем состоянии навсегда."
+    },
+    "blueos/perception.py": {
+      "role": "LiDAR/камера → RoofBoundary, Obstacle[], SnowLayer[].",
+      "imports": ["blueos/config.py"],
+      "imported_by": ["blueos/planner.py", "blueos/main.py"],
+      "test_file": "tests/test_perception.py"
+    },
+    "blueos/planner.py": {
+      "role": "Boustrophedon-планировщик дорожек очистки.",
+      "imports": ["blueos/config.py", "blueos/perception.py"],
+      "imported_by": ["blueos/main.py"],
+      "test_file": "tests/test_planner.py"
+    },
+    "blueos/power_manager.py": {
+      "role": "Заряд/разряд наземной суперконденсаторной станции.",
+      "imports": ["blueos/config.py"],
+      "imported_by": ["blueos/main.py"],
+      "test_file": "tests/test_power_manager.py"
+    },
+    "blueos/mavlink_interface.py": {
+      "role": "Обёртка MAVLink/ArduPilot (заглушка для pymavlink/dronekit).",
+      "imports": ["blueos/config.py"],
+      "imported_by": ["blueos/main.py"],
+      "test_file": "tests/test_mavlink_interface.py"
+    },
+    "blueos/tilt_controller.py": {
+      "role": "Угол наклона рамы 0-30°, SnowType enum (используется и тепловизором).",
+      "imports": ["blueos/config.py"],
+      "imported_by": ["blueos/thermal_analyzer.py", "blueos/main.py"],
+      "test_file": "tests/test_tilt_controller.py",
+      "note": "SnowType определён здесь, а не в отдельном общем модуле — thermal_analyzer.py импортирует его отсюда. Изменение SnowType здесь ломает оба модуля."
+    },
+    "blueos/burst_vibrator.py": {
+      "role": "Импульсный режим тяги (CONTINUOUS/PULSED/HAMMER/RAMP).",
+      "imports": ["blueos/config.py"],
+      "imported_by": ["blueos/main.py"],
+      "test_file": "tests/test_burst_vibrator.py"
+    },
+    "blueos/safety_monitor.py": {
+      "role": "GFCI/IMD/AFCI/Power Dump — 400В электробезопасность, 20Гц.",
+      "imports": ["blueos/config.py"],
+      "imported_by": ["blueos/main.py"],
+      "test_file": "tests/test_safety_monitor.py",
+      "note": "SAFETY-CRITICAL. См. CLAUDE.md 'Critical safety rules' перед любым изменением."
+    },
+    "blueos/backup_power.py": {
+      "role": "Резервное питание LiPo/SUPERCAP/HYBRID при обрыве кабеля.",
+      "imports": ["blueos/config.py"],
+      "imported_by": ["blueos/main.py"],
+      "test_file": "tests/test_backup_power.py"
+    },
+    "blueos/thermal_analyzer.py": {
+      "role": "FLIR Lepton 3.5 + Hailo-8L классификация снега и скрытых препятствий.",
+      "imports": ["blueos/config.py", "blueos/tilt_controller.py"],
+      "imported_by": ["blueos/main.py"],
+      "test_file": "tests/test_thermal_analyzer.py"
+    },
+    "blueos/hover_blow.py": {
+      "role": "Режим обдува снега зависанием (без контакта с крышей).",
+      "imports": ["blueos/config.py", "blueos/utils.py"],
+      "imported_by": ["blueos/main.py"],
+      "test_file": "tests/test_hover_blow.py"
+    },
+    "blueos/main.py": {
+      "role": "BoreasController — оркестрация всех 11 модулей, главный цикл, CLI.",
+      "imports": [
+        "blueos/config.py", "blueos/state_machine.py", "blueos/power_manager.py",
+        "blueos/perception.py", "blueos/planner.py", "blueos/mavlink_interface.py",
+        "blueos/tilt_controller.py", "blueos/burst_vibrator.py",
+        "blueos/safety_monitor.py", "blueos/thermal_analyzer.py",
+        "blueos/backup_power.py", "blueos/hover_blow.py"
+      ],
+      "imported_by": [],
+      "test_file": "tests/test_main.py",
+      "note": "Также делает локальный (внутрифункциональный) import 'from .perception import Obstacle' внутри _tick_survey() — не виден на уровне модуля, но реальная зависимость."
+    }
+  },
+  "impact_radius_examples": {
+    "editing_blueos/config.py": "Проверить все 11 modules + main.py — задеть можно любой.",
+    "editing_blueos/tilt_controller.py_SnowType": "Проверить thermal_analyzer.py и main.py (BoreasController._current_snow_type).",
+    "editing_blueos/state_machine.py_TRANSITIONS": "Проверить main.py — каждый sm.transition_to() вызов там должен оставаться допустимым."
+  }
+}

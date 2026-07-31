@@ -10,6 +10,27 @@ Power comes via a 400 V DC tether from a ground-based supercapacitor station (3�
 BMOD0165 P048, 495 F/48 V, ~570 kJ). The companion computer runs **BlueOS** — a Python 3.11
 control module on a Cube Orange+ flight controller (ArduPilot).
 
+## Autonomous Operation Protocol
+
+This project treats autonomous AI work as requiring an explicit state/validation
+harness, not just a knowledge base. Four files implement this, and every
+session must use them:
+
+| File | Purpose | When to touch it |
+|---|---|---|
+| `state_journal.md` | Append-only log of what was done, what's unresolved, and the single next step | End of every iteration — before moving to the next backlog item |
+| `validation_protocol.md` | Hard checklist (lint → format → mypy → tests → safety tests → coverage) | Before considering ANY code change done |
+| `.claudeignore` | Filters caches/binaries/artifacts out of what the agent reads | Passive — respect it, extend it if new artifact types appear |
+| `context_map.json` | Static import-dependency graph between `blueos/*.py` modules | Consult before editing a widely-imported module (e.g. `config.py`, `tilt_controller.py`); regenerate if module imports change |
+
+Full rationale and the underlying 98 practices + golden rule are in
+`docs/ai_autonomy_lifehacks.md`. The one rule that overrides convenience:
+
+> **Golden rule (Rule 99):** if your internal confidence that a change will
+> work is below 90%, stop, write no code, and ask exactly one precise
+> question instead of guessing. Do not "try and see" on safety-critical
+> files (`safety_monitor.py`, anything touching the 400 V tether path).
+
 ## Architecture — 11 BlueOS modules
 
 | Module | File | Role |
@@ -47,6 +68,7 @@ All constants are in `blueos/config.py`.
   for 400 V safety-critical tests.
 - Mark new safety-critical tests with `@pytest.mark.safety`.
 - Never add `time.sleep()` to the main 10 Hz loop.
+- Full step-by-step gate before calling any change done: `validation_protocol.md`.
 
 ## Key constants — do not change without updating README
 

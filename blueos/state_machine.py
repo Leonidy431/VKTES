@@ -30,7 +30,7 @@ class State(enum.Enum):
 
 TRANSITIONS: dict[State, set[State]] = {
     State.IDLE: {State.SURVEY, State.TRANSIT, State.EMERGENCY},
-    State.SURVEY: {State.TRANSIT, State.IDLE, State.EMERGENCY},
+    State.SURVEY: {State.TRANSIT, State.IDLE, State.RETREAT, State.EMERGENCY},
     State.TRANSIT: {State.BULLDOZER, State.HOVER_BLOW, State.RETREAT, State.EMERGENCY},
     State.BULLDOZER: {State.RETREAT, State.TRANSIT, State.EMERGENCY},
     State.HOVER_BLOW: {State.RETREAT, State.TRANSIT, State.EMERGENCY},

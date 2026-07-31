@@ -55,6 +55,14 @@ def test_survey_to_transit():
     assert sm.state == State.TRANSIT
 
 
+def test_survey_to_retreat():
+    # Planner failure in SURVEY must be able to route the drone home.
+    sm = make_sm()
+    sm.transition_to(State.SURVEY)
+    assert sm.transition_to(State.RETREAT) is True
+    assert sm.state == State.RETREAT
+
+
 def test_transit_to_bulldozer():
     sm = make_sm()
     sm.transition_to(State.TRANSIT)
