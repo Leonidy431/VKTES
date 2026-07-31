@@ -1,11 +1,10 @@
 """Тесты PlannerModule — генерация boustrophedon-маршрутов очистки."""
 
-import math
 
 import pytest
 
-from blueos.perception import PerceptionModule, RoofBoundary, Obstacle
-from blueos.planner import PlannerModule, Waypoint, Lane, CleaningPlan
+from blueos.perception import Obstacle, PerceptionModule, RoofBoundary
+from blueos.planner import CleaningPlan, Lane, PlannerModule, Waypoint
 
 SQUARE = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
 

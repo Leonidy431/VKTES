@@ -10,9 +10,8 @@
 
 import pytest
 
-from blueos.backup_power import BackupPowerManager, BackupState, BackupType
 from blueos import config
-
+from blueos.backup_power import BackupPowerManager, BackupState, BackupType
 
 # ---------------------------------------------------------------------------
 # SUPERCAP capacity fix
@@ -147,3 +146,66 @@ def test_status_report_keys():
     report = mgr.get_status_report()
     for key in ("type", "state", "voltage", "capacity_pct", "weight_kg", "emergency_time_sec"):
         assert key in report
+
+
+# ---------------------------------------------------------------------------
+# Simple property getters
+# ---------------------------------------------------------------------------
+
+def test_backup_type_property():
+    mgr = BackupPowerManager("SUPERCAP")
+    assert mgr.backup_type == BackupType.SUPERCAP
+
+
+def test_voltage_property_reflects_telemetry():
+    mgr = BackupPowerManager("LIPO")
+    mgr.update_telemetry(voltage=22.0, current=1.0, temperature=20.0, tether_connected=True)
+    assert mgr.voltage == pytest.approx(22.0)
+
+
+def test_weight_kg_property_hybrid():
+    mgr = BackupPowerManager("HYBRID")
+    assert mgr.weight_kg == pytest.approx(config.BACKUP_LIPO_WEIGHT_KG + 0.3)
+
+
+# ---------------------------------------------------------------------------
+# _check_health temperature branches (LIPO/HYBRID)
+# ---------------------------------------------------------------------------
+
+def test_check_health_overheat_reduces_health():
+    mgr = BackupPowerManager("LIPO")
+    mgr._last_health_check = 0.0
+    mgr.update_telemetry(voltage=22.0, current=1.0, temperature=50.0, tether_connected=True)
+    assert mgr._health_pct < 100.0
+
+
+def test_check_health_overcool_reduces_health():
+    mgr = BackupPowerManager("HYBRID")
+    mgr._last_health_check = 0.0
+    mgr.update_telemetry(voltage=22.0, current=1.0, temperature=-20.0, tether_connected=True)
+    assert mgr._health_pct < 100.0
+
+
+def test_check_health_supercap_ignores_temperature():
+    # SUPERCAP is not in (LIPO, HYBRID) so the temperature branch is skipped
+    mgr = BackupPowerManager("SUPERCAP")
+    mgr._last_health_check = 0.0
+    mgr.update_telemetry(voltage=16.0, current=1.0, temperature=90.0, tether_connected=True)
+    assert mgr._health_pct == pytest.approx(100.0)
+
+
+# ---------------------------------------------------------------------------
+# request_emergency_landing
+# ---------------------------------------------------------------------------
+
+def test_request_emergency_landing_when_not_active():
+    mgr = BackupPowerManager("HYBRID")
+    assert mgr.request_emergency_landing() is False
+
+
+def test_request_emergency_landing_when_active():
+    mgr = BackupPowerManager("HYBRID")
+    mgr.update_telemetry(voltage=22.0, current=1.0, temperature=20.0, tether_connected=True)
+    mgr.update_telemetry(voltage=22.0, current=1.0, temperature=20.0, tether_connected=False)
+    assert mgr.state == BackupState.ACTIVE
+    assert mgr.request_emergency_landing() is True

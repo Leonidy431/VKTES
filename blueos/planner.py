@@ -14,7 +14,7 @@ import math
 from dataclasses import dataclass, field
 
 from . import config
-from .perception import PerceptionModule, RoofBoundary, Obstacle
+from .perception import Obstacle, PerceptionModule, RoofBoundary
 
 logger = logging.getLogger(__name__)
 

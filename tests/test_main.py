@@ -4,19 +4,19 @@ import time as time_module
 
 import pytest
 
+from blueos import config
 from blueos import main as main_module
-from blueos.main import BoreasController
-from blueos.state_machine import State
-from blueos.power_manager import PowerState
-from blueos.safety_monitor import SafetyState, FaultType
 from blueos.backup_power import BackupState
 from blueos.burst_vibrator import BurstMode
-from blueos.tilt_controller import SnowType
+from blueos.hover_blow import BlowPoint, HoverBlowPlan
+from blueos.main import BoreasController
+from blueos.perception import RoofBoundary
+from blueos.planner import CleaningPlan, Lane, Waypoint
+from blueos.power_manager import PowerState
+from blueos.safety_monitor import FaultType, SafetyState
+from blueos.state_machine import State
 from blueos.thermal_analyzer import SnowAssessment
-from blueos.perception import RoofBoundary, Obstacle
-from blueos.planner import Lane, Waypoint, CleaningPlan
-from blueos.hover_blow import HoverBlowPlan, BlowPoint
-from blueos import config
+from blueos.tilt_controller import SnowType
 
 SQUARE = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
 

@@ -10,7 +10,6 @@
 """
 
 import logging
-import time
 from dataclasses import dataclass
 
 from . import config
@@ -79,7 +78,9 @@ class MAVLinkInterface:
             self._connected = True
             logger.info("MAVLink подключён")
             return True
-        except Exception:
+        except Exception:  # pragma: no cover
+            # Defensive: the stub above cannot actually raise; kept for when
+            # this is replaced with a real pymavlink connection call.
             logger.exception("Ошибка подключения MAVLink")
             self._connected = False
             return False

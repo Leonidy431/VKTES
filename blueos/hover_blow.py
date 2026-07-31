@@ -24,7 +24,7 @@ import math
 from dataclasses import dataclass, field
 
 from . import config
-from .utils import point_in_polygon, in_obstacle_zone
+from .utils import in_obstacle_zone, point_in_polygon
 
 logger = logging.getLogger(__name__)
 

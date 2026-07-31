@@ -3,10 +3,10 @@
 import pytest
 
 from blueos.thermal_analyzer import (
-    ThermalAnalyzer,
-    ThermalRegion,
     HiddenObstacle,
     SnowAssessment,
+    ThermalAnalyzer,
+    ThermalRegion,
 )
 from blueos.tilt_controller import SnowType
 
@@ -59,6 +59,13 @@ def test_process_frame_no_thermal_frame_deep_snow_bulldozer(analyzer):
 # ---------------------------------------------------------------------------
 # process_frame — logging every 50 frames
 # ---------------------------------------------------------------------------
+
+def test_process_frame_with_real_thermal_frame_stores_map(analyzer):
+    frame = uniform_frame(4, 4, -8.0)
+    assessment = analyzer.process_frame(thermal_frame=frame, lidar_depth_mm=50.0, ambient_temp_c=-10.0)
+    assert analyzer._thermal_map == frame
+    assert isinstance(assessment, SnowAssessment)
+
 
 def test_process_frame_logs_every_50(analyzer):
     for _ in range(50):

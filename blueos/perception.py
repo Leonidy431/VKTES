@@ -6,6 +6,7 @@
 import logging
 import math
 from dataclasses import dataclass, field
+from typing import Any
 
 from . import config
 
@@ -95,7 +96,7 @@ class PerceptionModule:
 
     def process_survey_frame(
         self,
-        image,
+        image: Any,
         lidar_points: list[tuple[float, float, float]] | None = None,
         drone_position: tuple[float, float, float] | None = None,
     ) -> None:

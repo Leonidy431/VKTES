@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from blueos.burst_vibrator import BurstVibrator, BurstMode
+from blueos.burst_vibrator import BurstMode, BurstVibrator
 
 
 @pytest.fixture

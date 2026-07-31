@@ -3,11 +3,11 @@
 import pytest
 
 from blueos.utils import (
-    point_in_polygon,
+    bounding_box,
     in_obstacle_zone,
+    point_in_polygon,
     polygon_area,
     polygon_centroid,
-    bounding_box,
 )
 
 SQUARE = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]

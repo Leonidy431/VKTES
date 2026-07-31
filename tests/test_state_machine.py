@@ -245,6 +245,17 @@ def test_listener_exception_does_not_crash_sm():
     assert sm.state == State.SURVEY
 
 
+def test_listener_exception_does_not_crash_force_emergency():
+    sm = make_sm()
+
+    def bad_listener(old, new):
+        raise RuntimeError("listener error")
+
+    sm.add_listener(bad_listener)
+    sm.force_emergency()
+    assert sm.state == State.EMERGENCY
+
+
 # ---------------------------------------------------------------------------
 # time_in_state
 # ---------------------------------------------------------------------------

@@ -11,12 +11,11 @@
 import pytest
 
 from blueos.safety_monitor import (
+    FaultType,
     SafetyMonitor,
     SafetyState,
     SafetyTelemetry,
-    FaultType,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -150,7 +149,7 @@ def test_arc_warning_at_low_energy(monitor):
 @pytest.mark.safety
 def test_no_arc_outside_frequency_range(monitor):
     telemetry = make_telemetry(arc_freq_khz=0.0, arc_energy=0.0)
-    state = monitor.update(telemetry)
+    monitor.update(telemetry)
     assert monitor.last_fault != FaultType.ARC_DETECTED
 
 
@@ -210,3 +209,224 @@ def test_state_does_not_recover_automatically_after_shutdown(monitor):
     assert monitor.state == SafetyState.SHUTDOWN
     monitor.update(make_telemetry())  # нормальные данные
     assert monitor.state == SafetyState.SHUTDOWN
+
+
+# ---------------------------------------------------------------------------
+# _contactor_open (private property + setter)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.safety
+def test_contactor_open_getter_reflects_commanded_state():
+    m = SafetyMonitor()
+    assert m._contactor_open is True  # not commanded closed yet
+    m._contactor_commanded = True
+    assert m._contactor_open is False
+
+
+@pytest.mark.safety
+def test_contactor_open_setter_true_disables_power():
+    m = SafetyMonitor()
+    m._contactor_commanded = True
+    m._power_enabled = True
+    m._contactor_open = True
+    assert m._contactor_commanded is False
+    assert m._power_enabled is False
+
+
+@pytest.mark.safety
+def test_contactor_open_setter_false_enables_power():
+    m = SafetyMonitor()
+    m._contactor_open = False
+    assert m._contactor_commanded is True
+    assert m._power_enabled is True
+
+
+# ---------------------------------------------------------------------------
+# is_power_safe / events properties
+# ---------------------------------------------------------------------------
+
+@pytest.mark.safety
+def test_is_power_safe_true_when_ok():
+    m = SafetyMonitor()
+    assert m.is_power_safe is True
+
+
+@pytest.mark.safety
+def test_is_power_safe_false_when_shutdown():
+    m = SafetyMonitor()
+    m.emergency_shutdown(FaultType.GROUND_FAULT, "test")
+    assert m.is_power_safe is False
+
+
+@pytest.mark.safety
+def test_events_property_starts_empty():
+    m = SafetyMonitor()
+    assert m.events == []
+
+
+# ---------------------------------------------------------------------------
+# pre_power_check failure path
+# ---------------------------------------------------------------------------
+
+@pytest.mark.safety
+def test_pre_power_check_fails_on_missing_ground_rod():
+    m = SafetyMonitor()
+    m._telemetry = make_telemetry(ground_rod=False)
+    ok, report = m.pre_power_check()
+    assert ok is False
+    assert "ЗАЗЕМЛЕНИ" in report
+    assert len(m.events) == 1
+
+
+@pytest.mark.safety
+def test_pre_power_check_fails_on_tether_break():
+    m = SafetyMonitor()
+    m._telemetry = make_telemetry(tether_continuity=False)
+    ok, report = m.pre_power_check()
+    assert ok is False
+
+
+# ---------------------------------------------------------------------------
+# enable_power success path
+# ---------------------------------------------------------------------------
+
+@pytest.mark.safety
+def test_enable_power_succeeds_with_clean_telemetry():
+    m = SafetyMonitor()
+    result = m.enable_power()
+    assert result is True
+    assert m._contactor_commanded is True
+    assert m._power_enabled is True
+    assert m._gfci_armed is True
+
+
+@pytest.mark.safety
+def test_enable_power_fails_with_bad_telemetry():
+    m = SafetyMonitor()
+    m._telemetry = make_telemetry(ground_rod=False)
+    result = m.enable_power()
+    assert result is False
+    assert m._power_enabled is False
+
+
+# ---------------------------------------------------------------------------
+# update(): voltage imbalance / overcurrent / tether continuity trips
+# ---------------------------------------------------------------------------
+
+@pytest.mark.safety
+def test_update_trips_on_critical_voltage_imbalance(monitor):
+    telemetry = make_telemetry(line_voltage_pos=220.0, line_voltage_neg=200.0)
+    state = monitor.update(telemetry)
+    assert state == SafetyState.SHUTDOWN
+    assert monitor.last_fault == FaultType.VOLTAGE_IMBALANCE
+
+
+@pytest.mark.safety
+def test_update_warns_on_moderate_voltage_imbalance(monitor):
+    telemetry = make_telemetry(line_voltage_pos=207.0, line_voltage_neg=200.0)
+    state = monitor.update(telemetry)
+    assert state in (SafetyState.WARNING, SafetyState.FAULT)
+    assert state != SafetyState.SHUTDOWN
+
+
+@pytest.mark.safety
+def test_update_trips_on_overcurrent(monitor):
+    from blueos import config
+    telemetry = make_telemetry(line_current_a=config.TETHER_MAX_CURRENT * 2)
+    state = monitor.update(telemetry)
+    assert state == SafetyState.SHUTDOWN
+    assert monitor.last_fault == FaultType.OVERCURRENT
+
+
+@pytest.mark.safety
+def test_update_trips_on_tether_disconnect(monitor):
+    telemetry = make_telemetry(tether_continuity=False)
+    state = monitor.update(telemetry)
+    assert state == SafetyState.SHUTDOWN
+    assert monitor.last_fault == FaultType.TETHER_DISCONNECT
+
+
+@pytest.mark.safety
+def test_update_recovers_to_ok_after_warning_count_expires(monitor):
+    telemetry_warn = make_telemetry(leakage_ma=16.0)
+    monitor.update(telemetry_warn)
+    assert monitor.state == SafetyState.WARNING
+
+    monitor._warning_count = 1
+    good = make_telemetry()
+    state = monitor.update(good)
+    assert state == SafetyState.OK
+    assert monitor.last_fault == FaultType.NONE
+
+
+# ---------------------------------------------------------------------------
+# reset_fault
+# ---------------------------------------------------------------------------
+
+@pytest.mark.safety
+def test_reset_fault_noop_when_not_shutdown():
+    m = SafetyMonitor()
+    assert m.state == SafetyState.OK
+    assert m.reset_fault() is True
+
+
+@pytest.mark.safety
+def test_reset_fault_fails_when_precheck_fails():
+    m = SafetyMonitor()
+    m.emergency_shutdown(FaultType.GROUND_FAULT, "test")
+    m._telemetry = make_telemetry(ground_rod=False)
+    result = m.reset_fault()
+    assert result is False
+    assert m.state == SafetyState.SHUTDOWN
+
+
+# ---------------------------------------------------------------------------
+# _check_arc: AFCI disarmed
+# ---------------------------------------------------------------------------
+
+@pytest.mark.safety
+def test_check_arc_returns_false_when_disarmed(monitor):
+    monitor._afci_armed = False
+    telemetry = make_telemetry(arc_freq_khz=50.0, arc_energy=0.9)
+    assert monitor._check_arc(telemetry) is False
+
+
+# ---------------------------------------------------------------------------
+# _set_warning: no-op during SHUTDOWN
+# ---------------------------------------------------------------------------
+
+@pytest.mark.safety
+def test_set_warning_noop_during_shutdown():
+    m = SafetyMonitor()
+    m.emergency_shutdown(FaultType.GROUND_FAULT, "test")
+    events_before = len(m.events)
+    m._set_warning(FaultType.ARC_DETECTED, 1.0, 0.5, "should be ignored")
+    assert m.state == SafetyState.SHUTDOWN
+    assert len(m.events) == events_before
+
+
+# ---------------------------------------------------------------------------
+# _record_event: log trimming beyond 1000 entries
+# ---------------------------------------------------------------------------
+
+@pytest.mark.safety
+def test_record_event_trims_log_beyond_1000():
+    m = SafetyMonitor()
+    m._events = [object()] * 1001  # type: ignore[list-item]
+    m._record_event(FaultType.NONE, SafetyState.OK, 0, 0, "msg", "action")
+    assert len(m._events) == 500
+
+
+# ---------------------------------------------------------------------------
+# get_voltage_alternatives (module-level function)
+# ---------------------------------------------------------------------------
+
+def test_get_voltage_alternatives_structure():
+    from blueos.safety_monitor import get_voltage_alternatives
+    alternatives = get_voltage_alternatives()
+    assert len(alternatives) == 4
+    voltages = {a["voltage"] for a in alternatives}
+    assert voltages == {400, 200, 120, 48}
+    for alt in alternatives:
+        assert "requires" in alt
+        assert "safety_class" in alt

@@ -24,6 +24,7 @@ import enum
 import logging
 import time
 from dataclasses import dataclass
+from typing import Any
 
 from . import config
 
@@ -429,7 +430,7 @@ class SafetyMonitor:
             self._events = self._events[-500:]
 
 
-def get_voltage_alternatives() -> list[dict]:
+def get_voltage_alternatives() -> list[dict[str, Any]]:
     """
     Альтернативные схемы напряжения тросового питания.
 

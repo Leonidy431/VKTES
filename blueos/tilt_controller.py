@@ -145,7 +145,11 @@ class TiltController:
 
         # 5. Проверка безопасности взлёта при новом угле
         vertical = config.MAX_STATIC_THRUST_KGF * math.cos(math.radians(angle))
-        if vertical < config.DRONE_WEIGHT_KG * 1.5:
+        if vertical < config.DRONE_WEIGHT_KG * 1.5:  # pragma: no cover
+            # Unreachable with current config: angle is already clamped to
+            # TILT_MAX_DEG (30°) above, and MAX_STATIC_THRUST_KGF*cos(30°)
+            # (~43.3 kgf) exceeds DRONE_WEIGHT_KG*1.5 (~27.75 kgf) by a wide
+            # margin. Kept as a defensive guard for future airframe/config changes.
             angle = config.TILT_MAX_DEG  # Уже на пределе
             logger.warning(
                 "Вертикальная тяга на пределе: %.1f кгс при %.0f°",

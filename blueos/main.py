@@ -21,17 +21,17 @@ import sys
 import time
 
 from . import config
-from .state_machine import StateMachine, State
-from .power_manager import PowerManager, PowerState
+from .backup_power import BackupPowerManager, BackupState
+from .burst_vibrator import BurstMode, BurstVibrator
+from .hover_blow import HoverBlowController
+from .mavlink_interface import MAVLinkInterface
 from .perception import PerceptionModule
 from .planner import PlannerModule
-from .mavlink_interface import MAVLinkInterface
-from .tilt_controller import TiltController, SnowType
-from .burst_vibrator import BurstVibrator, BurstMode
-from .safety_monitor import SafetyMonitor, SafetyTelemetry, SafetyState
+from .power_manager import PowerManager, PowerState
+from .safety_monitor import SafetyMonitor, SafetyState, SafetyTelemetry
+from .state_machine import State, StateMachine
 from .thermal_analyzer import ThermalAnalyzer
-from .backup_power import BackupPowerManager, BackupState
-from .hover_blow import HoverBlowController
+from .tilt_controller import SnowType, TiltController
 
 logger = logging.getLogger("blueos")
 
@@ -411,7 +411,11 @@ class BoreasController:
             self.tilt.set_snow_type(self._current_snow_type)
 
             # Выбрать режим импульсов
-            burst_mode = self.burst.recommend_mode(
+            # TODO(backlog): _burst_mode вычисляется, но не применяется — RAMP
+            # всегда переключается на PULSED (см. BurstVibrator._compute_ramp),
+            # поэтому HAMMER для WET/ICE сейчас недостижим через этот путь.
+            # См. BACKLOG.md.
+            _burst_mode = self.burst.recommend_mode(
                 self._current_snow_type.value,
                 self._current_snow_depth_mm,
             )
@@ -436,8 +440,9 @@ class BoreasController:
             )
             return
 
-        # Адаптивное управление углом
-        optimal_angle = self.tilt.compute_optimal_angle(
+        # Адаптивное управление углом (побочный эффект — обновляет self.tilt.target_angle,
+        # возвращаемое значение не нужно здесь, читается через свойства ниже)
+        self.tilt.compute_optimal_angle(
             snow_type=self._current_snow_type,
             snow_depth_mm=self._current_snow_depth_mm,
             ground_speed_ms=self.mav.drone.ground_speed_ms,
@@ -636,7 +641,7 @@ def main() -> None:
         simulate=args.simulate,
     )
 
-    def signal_handler(sig, frame):
+    def signal_handler(sig: int, frame: object) -> None:
         logger.info("Получен сигнал %s — завершение", sig)
         controller.stop()
 
@@ -646,5 +651,5 @@ def main() -> None:
     controller.start()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

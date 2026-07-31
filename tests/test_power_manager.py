@@ -4,8 +4,8 @@ import time
 
 import pytest
 
-from blueos.power_manager import PowerManager, PowerState
 from blueos import config
+from blueos.power_manager import PowerManager, PowerState
 
 
 @pytest.fixture
@@ -59,6 +59,18 @@ def test_estimated_burst_time_zero_energy(pm):
 def test_estimated_burst_time_positive(pm):
     pm.update_telemetry(voltage=48.0, current=0.0, temperature=20.0)
     assert pm.estimated_burst_time_sec > 0.0
+
+
+def test_energy_percent_zero_when_max_energy_config_zero(pm, monkeypatch):
+    monkeypatch.setattr(config, "SUPERCAP_MAX_ENERGY_KJ", 0.0)
+    pm.update_telemetry(voltage=48.0, current=0.0, temperature=20.0)
+    assert pm.energy_percent == 0.0
+
+
+def test_estimated_burst_time_zero_when_max_thrust_config_zero(pm, monkeypatch):
+    monkeypatch.setattr(config, "MAX_THRUST_KW", 0.0)
+    pm.update_telemetry(voltage=48.0, current=0.0, temperature=20.0)
+    assert pm.estimated_burst_time_sec == 0.0
 
 
 # ---------------------------------------------------------------------------

@@ -23,7 +23,6 @@ Hailo-8L: 13 TOPS, <2.5 Вт, вывод за <50 мс на кадр.
 Модель: YOLOv8-seg обученная на тепловых данных зимних крыш.
 """
 
-import enum
 import logging
 import math
 from dataclasses import dataclass, field
@@ -331,7 +330,7 @@ class ThermalAnalyzer:
         for r in regions:
             type_area[r.snow_type] = type_area.get(r.snow_type, 0) + r.area_m2
 
-        return max(type_area, key=type_area.get)
+        return max(type_area, key=lambda snow_type: type_area[snow_type])
 
     @staticmethod
     def _estimate_density(snow_type: SnowType, ambient_temp: float) -> float:

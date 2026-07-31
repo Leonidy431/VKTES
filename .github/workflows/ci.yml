@@ -100,5 +100,5 @@ jobs:
         run: |
           pytest tests/ -m "not safety" \
             --cov=blueos \
-            --cov-fail-under=70 \
+            --cov-fail-under=99 \
             -q

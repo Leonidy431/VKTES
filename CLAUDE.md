@@ -106,7 +106,12 @@ pytest tests/test_safety_monitor.py -m safety -v
 pytest tests/ --cov=blueos --cov-report=term-missing
 ```
 
-Coverage target: ≥70 % on `blueos/`. CI gate enforced in `.github/workflows/ci.yml`.
+Coverage target: ≥99 % on `blueos/` (currently 100%). CI gate enforced in
+`.github/workflows/ci.yml`. A handful of genuinely unreachable defensive
+branches are marked `# pragma: no cover` with an inline note explaining why
+(e.g. dead code from overlapping config ranges, stub exception handlers) —
+don't add a pragma to hide a real gap; only for lines that cannot execute
+given the current config/architecture.
 
 ## Algorithm Selection & Validation — 12-Phase HLD
 

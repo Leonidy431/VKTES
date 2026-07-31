@@ -2,12 +2,12 @@
 
 import pytest
 
+from blueos import config
 from blueos.mavlink_interface import (
-    MAVLinkInterface,
     DroneTelemetry,
     GroundStationTelemetry,
+    MAVLinkInterface,
 )
-from blueos import config
 
 
 @pytest.fixture

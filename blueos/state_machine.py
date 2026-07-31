@@ -14,8 +14,11 @@
 import enum
 import logging
 import time
+from typing import Callable
 
 logger = logging.getLogger(__name__)
+
+StateListener = Callable[["State", "State"], None]
 
 
 class State(enum.Enum):
@@ -45,7 +48,7 @@ class StateMachine:
     def __init__(self) -> None:
         self._state = State.IDLE
         self._state_enter_time = time.monotonic()
-        self._listeners: list = []
+        self._listeners: list[StateListener] = []
         self._history: list[tuple[float, State, State]] = []
 
     @property
@@ -60,7 +63,7 @@ class StateMachine:
     def history(self) -> list[tuple[float, State, State]]:
         return self._history
 
-    def add_listener(self, callback) -> None:
+    def add_listener(self, callback: StateListener) -> None:
         self._listeners.append(callback)
 
     def transition_to(self, new_state: State) -> bool:

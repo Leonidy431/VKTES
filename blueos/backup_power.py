@@ -20,6 +20,7 @@
 import enum
 import logging
 import time
+from typing import Any
 
 from . import config
 
@@ -250,7 +251,7 @@ class BackupPowerManager:
             return True
         return False
 
-    def get_status_report(self) -> dict:
+    def get_status_report(self) -> dict[str, Any]:
         """Сводка состояния резервного питания."""
         return {
             "type": self._type.value,

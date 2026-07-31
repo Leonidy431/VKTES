@@ -2,8 +2,8 @@
 
 import pytest
 
-from blueos.hover_blow import HoverBlowController, HoverBlowPlan, BlowPoint
 from blueos import config
+from blueos.hover_blow import BlowPoint, HoverBlowController, HoverBlowPlan
 
 SQUARE = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
 

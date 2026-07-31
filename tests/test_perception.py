@@ -3,8 +3,8 @@
 import pytest
 
 from blueos.perception import (
-    PerceptionModule,
     Obstacle,
+    PerceptionModule,
     RoofBoundary,
     SnowLayer,
 )
