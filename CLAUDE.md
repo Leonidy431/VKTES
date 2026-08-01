@@ -67,6 +67,19 @@ All constants are in `blueos/config.py`.
 - Run `pytest tests/ -m "not safety"` for fast feedback; run `pytest -m safety` separately
   for 400 V safety-critical tests.
 - Mark new safety-critical tests with `@pytest.mark.safety`.
+- **Git push budget: max 2 pushes per day.** Batch commits locally, run the full
+  `validation_protocol.md` checklist once, then push. Do not push after every small edit —
+  push only when a self-contained unit of work is validated and ready.
+- **Never push or attempt a merge while any step of `validation_protocol.md` is red.**
+  Fix ruff/mypy/test/coverage failures first; only a fully green run may be pushed.
+- **Known git gotcha:** in a fresh container/session, the local clone can start with the
+  remote configured but zero commits checked out (`git status` reports "No commits yet").
+  This is not repo corruption — recover with
+  `git fetch origin <branch> && git checkout -B <branch> origin/<branch>` before assuming
+  anything is broken or re-doing work that already exists on the remote.
+- This repository's remote may not have a `main`/`master` branch — verify with
+  `git ls-remote origin` before assuming a merge target exists. If it doesn't, merging
+  requires the operator to specify (or create) a target branch first.
 - Never add `time.sleep()` to the main 10 Hz loop.
 - Full step-by-step gate before calling any change done: `validation_protocol.md`.
 
