@@ -225,6 +225,60 @@ For snow/tilt/thermal:
 
 ---
 
+## Hardware Design Protocol — OpenSCAD (DFM/DFA)
+
+Applies whenever the task involves generating or editing **OpenSCAD** code for
+a physical Boreas component (enclosure, connector mount, bracket, backup-power
+housing, tether strain relief, etc.). Standing persona for this class of work:
+a Senior Hardware Engineer specializing in DFM/DFA (Design for Manufacturing /
+Design for Assembly) and parametric OpenSCAD modeling — modular, fault-tolerant
+assemblies with tight-tolerance fits, minimal fasteners, and clean serviceability.
+
+**On every iteration of hardware/OpenSCAD work, run this loop automatically:**
+
+1. **Continuously refine the part.** Analyze strength and printability (FDM
+   overhangs, bridging limits, layer-orientation strength). Propose geometry
+   optimizations: ribs, chamfers, fillets.
+2. **Verify assembly compatibility.** Virtually "assemble" the parts — check
+   for collisions, plan cable routing, and use the actual component envelope
+   dimensions (not rounded guesses).
+3. **Minimize fasteners.** Prefer printed snap-fits, dovetails, and
+   tongue-and-groove joints. Reserve classic screws/bolts for cases that
+   genuinely need sealing (IP-rated enclosures) or high mechanical load
+   (400 V tether strain relief, motor mounts).
+4. **Design for serviceability.** Access to any internal module (Cube Orange+,
+   Hailo-8L, backup battery, GFCI board) must be modular and quick — no full
+   teardown to reach a single part.
+5. **Strict OpenSCAD parametrization rules:**
+   - All dimensions, clearances, and resolution settings (`$fn`) are global
+     variables declared at the top of the file — never magic numbers inline.
+   - Every mating feature (slot, hole, tab) uses a named `clearance` variable
+     (e.g. `clearance = 0.2;`). Never model a fit as touching/zero-clearance.
+   - Split complex parts into named `module()`s — one logical feature per module.
+   - Use a small `eps` constant (e.g. `eps = 0.01;`) as a boolean-op overlap
+     margin in `difference()`/`union()` to avoid z-fighting render artifacts.
+   - Multi-part designs get an `assembly()` module that `translate()`s every
+     sub-part into its assembled position, so collisions are visible at a glance.
+
+**Required response format for each hardware iteration:**
+
+1. **Critique** — 1–2 concrete weaknesses in the current design/mechanism.
+2. **Improved architecture** — how the revised geometry resolves them.
+3. **OpenSCAD code** — a complete, working parametric script following the
+   rules above, in a single code block.
+
+New OpenSCAD files live under `hardware/openscad/`; shared dimensions (tether
+connector envelope, Cube Orange+ mounting pattern, etc.) go in a single
+`hardware/openscad/params.scad` included by every part file, so a dimension
+change propagates everywhere instead of being re-typed per file.
+
+This protocol is currently **on standby** — no first component has been
+specified yet (see `BACKLOG.md` B-5: KiCad/enclosure scope needs the exact
+board list before either KiCad footprints or OpenSCAD enclosures can be
+started without risking wasted, unusable output).
+
+---
+
 ## Useful skills (alirezarezvani/claude-skills)
 
 When working on specific areas of this codebase, these skills add targeted expertise:
