@@ -70,6 +70,10 @@ All constants are in `blueos/config.py`.
 - **Git push budget: max 2 pushes per day.** Batch commits locally, run the full
   `validation_protocol.md` checklist once, then push. Do not push after every small edit —
   push only when a self-contained unit of work is validated and ready.
+  **Exception:** if the session's stop-hook (or any harness check) blocks completion because
+  of unpushed commits, push to clear it — a clean working tree at session end overrides the
+  daily budget, since leaving committed-but-unpushed work behind risks losing it (see the
+  fresh-container gotcha below). The budget governs pace during active work, not session exit.
 - **Never push or attempt a merge while any step of `validation_protocol.md` is red.**
   Fix ruff/mypy/test/coverage failures first; only a fully green run may be pushed.
 - **Known git gotcha:** in a fresh container/session, the local clone can start with the
@@ -77,9 +81,14 @@ All constants are in `blueos/config.py`.
   This is not repo corruption — recover with
   `git fetch origin <branch> && git checkout -B <branch> origin/<branch>` before assuming
   anything is broken or re-doing work that already exists on the remote.
-- This repository's remote may not have a `main`/`master` branch — verify with
-  `git ls-remote origin` before assuming a merge target exists. If it doesn't, merging
-  requires the operator to specify (or create) a target branch first.
+- **This repository has no `main`/`master` branch.** `claude/write-boreas-readme-YYTjg` is
+  both the only branch and the remote's `HEAD` (default branch) — it already is the trunk.
+  Verify with `git ls-remote origin` before assuming otherwise; if a `main` is ever created,
+  update this note.
+- The remote can point at either an internal sandbox proxy or real GitHub depending on the
+  session — check `git remote -v` if a push is unexpectedly rejected (non-fast-forward);
+  don't assume corruption, fetch and inspect the divergent commits' actual content before
+  merging (see `state_journal.md` iteration 5 for a worked example).
 - Never add `time.sleep()` to the main 10 Hz loop.
 - Full step-by-step gate before calling any change done: `validation_protocol.md`.
 
