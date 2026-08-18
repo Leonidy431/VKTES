@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import config
+from .utils import distance_to_polygon_boundary
 
 logger = logging.getLogger(__name__)
 
@@ -175,15 +176,27 @@ class PerceptionModule:
     def is_point_safe(self, x: float, y: float) -> bool:
         """
         Проверить, что точка (x, y) безопасна для движения:
-        - Внутри границ крыши (с отступом MIN_ROOF_EDGE_DISTANCE_M)
+        - Внутри границ крыши, с отступом MIN_ROOF_EDGE_DISTANCE_M от края
+          (см. BLIND SPOTS BS-62 — раньше отступ был объявлен в докстринге,
+          но не применялся)
         - Вне буферных зон препятствий
+        - В пределах длины кабеля TETHER_LENGTH_M от точки старта (0, 0) —
+          координата станции считается совпадающей с точкой взлёта дрона
+          (см. BS-44/BS-48: формальной привязки координатной системы к
+          станции в проекте пока нет — это рабочее допущение)
         """
-        if self._roof.is_valid and not self._roof.contains(x, y):
-            return False
+        if self._roof.is_valid:
+            if not self._roof.contains(x, y):
+                return False
+            if distance_to_polygon_boundary(x, y, self._roof.vertices) < config.MIN_ROOF_EDGE_DISTANCE_M:
+                return False
 
         for obs in self._obstacles:
             dist = math.hypot(x - obs.x, y - obs.y)
             if dist < obs.radius + config.OBSTACLE_BUFFER_M:
                 return False
+
+        if math.hypot(x, y) > config.TETHER_LENGTH_M:
+            return False
 
         return True

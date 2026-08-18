@@ -4,8 +4,10 @@ import pytest
 
 from blueos.utils import (
     bounding_box,
+    distance_to_polygon_boundary,
     in_obstacle_zone,
     point_in_polygon,
+    point_to_segment_distance,
     polygon_area,
     polygon_centroid,
 )
@@ -123,3 +125,38 @@ def test_bounding_box_square():
 def test_bounding_box_single_point():
     x_min, y_min, x_max, y_max = bounding_box([(3.0, 4.0)])
     assert (x_min, y_min, x_max, y_max) == (3.0, 4.0, 3.0, 4.0)
+
+
+# ---------------------------------------------------------------------------
+# point_to_segment_distance
+# ---------------------------------------------------------------------------
+
+def test_point_to_segment_distance_perpendicular():
+    # Point directly above the middle of a horizontal segment.
+    d = point_to_segment_distance(5.0, 3.0, 0.0, 0.0, 10.0, 0.0)
+    assert d == pytest.approx(3.0)
+
+
+def test_point_to_segment_distance_beyond_endpoint():
+    # Point past segment end -> distance to nearest endpoint.
+    d = point_to_segment_distance(15.0, 0.0, 0.0, 0.0, 10.0, 0.0)
+    assert d == pytest.approx(5.0)
+
+
+def test_point_to_segment_distance_degenerate_segment():
+    # Zero-length segment (a == b) -> plain point distance.
+    d = point_to_segment_distance(3.0, 4.0, 0.0, 0.0, 0.0, 0.0)
+    assert d == pytest.approx(5.0)
+
+
+# ---------------------------------------------------------------------------
+# distance_to_polygon_boundary
+# ---------------------------------------------------------------------------
+
+def test_distance_to_polygon_boundary_center():
+    d = distance_to_polygon_boundary(5.0, 5.0, SQUARE)
+    assert d == pytest.approx(5.0)
+
+
+def test_distance_to_polygon_boundary_too_few_vertices():
+    assert distance_to_polygon_boundary(0.0, 0.0, [(0.0, 0.0)]) == float("inf")

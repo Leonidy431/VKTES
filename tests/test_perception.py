@@ -167,3 +167,18 @@ def test_is_point_safe_away_from_obstacle(perception):
     perception._roof = RoofBoundary(vertices=SQUARE)
     perception._obstacles = [Obstacle(x=1.0, y=1.0, radius=0.2)]
     assert perception.is_point_safe(9.0, 9.0) is True
+
+
+def test_is_point_safe_too_close_to_roof_edge(perception):
+    perception._roof = RoofBoundary(vertices=SQUARE)
+    # Inside the polygon, but within MIN_ROOF_EDGE_DISTANCE_M of the edge.
+    from blueos import config
+    assert perception.is_point_safe(0.1, 5.0) is False
+    assert config.MIN_ROOF_EDGE_DISTANCE_M > 0.1
+
+
+def test_is_point_safe_beyond_tether_reach(perception):
+    from blueos import config
+    # No roof set, so only the tether-reach check applies.
+    far = config.TETHER_LENGTH_M + 10.0
+    assert perception.is_point_safe(far, 0.0) is False

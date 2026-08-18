@@ -59,6 +59,36 @@ def polygon_centroid(vertices: list[tuple[float, float]]) -> tuple[float, float]
     return cx, cy
 
 
+def point_to_segment_distance(
+    px: float, py: float, ax: float, ay: float, bx: float, by: float,
+) -> float:
+    """Кратчайшее расстояние от точки (px,py) до отрезка (ax,ay)-(bx,by)."""
+    dx, dy = bx - ax, by - ay
+    seg_len_sq = dx * dx + dy * dy
+    if seg_len_sq == 0.0:
+        return math.hypot(px - ax, py - ay)
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / seg_len_sq))
+    proj_x, proj_y = ax + t * dx, ay + t * dy
+    return math.hypot(px - proj_x, py - proj_y)
+
+
+def distance_to_polygon_boundary(
+    x: float, y: float, vertices: list[tuple[float, float]],
+) -> float:
+    """Кратчайшее расстояние от точки до ближайшего ребра полигона."""
+    n = len(vertices)
+    if n < 2:
+        return float("inf")
+    best = float("inf")
+    for i in range(n):
+        ax, ay = vertices[i]
+        bx, by = vertices[(i + 1) % n]
+        d = point_to_segment_distance(x, y, ax, ay, bx, by)
+        if d < best:
+            best = d
+    return best
+
+
 def bounding_box(
     vertices: list[tuple[float, float]],
 ) -> tuple[float, float, float, float]:

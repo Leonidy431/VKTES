@@ -115,6 +115,14 @@ BACKUP_EMERGENCY_FLIGHT_SEC = 45  # s  — LIPO/HYBRID budget
    Fixed in v0.2.1: `BackupPowerManager._max_flight_sec` is now computed from actual
    capacity, not the fixed `BACKUP_EMERGENCY_FLIGHT_SEC` constant.
 
+3. **99 blind spots audit** — systematic gap analysis across code, `wiring_diagram.md`,
+   and `engineering_review.md`. Full list: `docs/blind_spots_audit.md`; tracked in
+   `BACKLOG.md`. 6/99 fixed with tests (geofence enforcement, tether-reach and
+   roof-edge-distance validation, confidence-gated HOVER_BLOW, config invariants,
+   honest BULLDOZER abort when thrust is insufficient). The remaining 93 need
+   hardware, architecture, or an explicit operator decision — see BS-99 in the audit
+   for the still-unresolved verdict from `engineering_review.md` ("Safety: 3/10").
+
 ## Testing
 
 ```bash

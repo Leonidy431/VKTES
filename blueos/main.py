@@ -241,6 +241,16 @@ class BoreasController:
             self.sm.force_emergency()
             return True
 
+        # Geofence: превышение максимальной высоты (BLIND SPOTS BS-33 —
+        # GEOFENCE_* константы были объявлены, но нигде не применялись)
+        if config.GEOFENCE_ENABLED and self.mav.drone.alt_m > config.GEOFENCE_MAX_ALTITUDE_M:
+            logger.critical(
+                "GEOFENCE: высота %.1f м > лимита %.1f м — аварийная посадка",
+                self.mav.drone.alt_m, config.GEOFENCE_MAX_ALTITUDE_M,
+            )
+            self.sm.force_emergency()
+            return True
+
         return False
 
     def _tick(self) -> None:
@@ -309,6 +319,24 @@ class BoreasController:
 
         self._current_snow_type = assessment.dominant_type
         self._recommended_mode = assessment.recommended_mode
+
+        # BLIND SPOTS BS-69: assessment.confidence вычислялся per-регион, но
+        # никогда не влиял на решение. Низкая уверенность классификации не
+        # должна разрешать бесконтактный HOVER_BLOW (который полагается на
+        # то, что снег действительно рыхлый) — откатываемся на BULLDOZER,
+        # устойчивый к ошибке классификации за счёт физического контакта.
+        if assessment.regions:
+            mean_confidence = sum(r.confidence for r in assessment.regions) / len(assessment.regions)
+            if (
+                self._recommended_mode == "HOVER_BLOW"
+                and mean_confidence < config.THERMAL_MIN_CONFIDENCE_FOR_HOVER_BLOW
+            ):
+                logger.warning(
+                    "SURVEY: низкая уверенность классификации (%.2f < %.2f) — "
+                    "HOVER_BLOW заменён на BULLDOZER",
+                    mean_confidence, config.THERMAL_MIN_CONFIDENCE_FOR_HOVER_BLOW,
+                )
+                self._recommended_mode = "BULLDOZER"
 
         # Передать скрытые препятствия в PerceptionModule
         for hidden in assessment.hidden_obstacles:
@@ -422,12 +450,19 @@ class BoreasController:
             self.burst.set_mode(BurstMode.RAMP)  # Всегда начинаем с RAMP
             self.burst.reset()
 
-            # Проверка: справится ли дрон?
+            # Проверка: справится ли дрон? BLIND SPOTS BS-22 — раньше система
+            # только логировала предупреждение и всё равно пыталась толкать
+            # снег, превышающий возможности тяги (риск перегрузки моторов
+            # без всякого шанса на успех). Теперь — честный отказ от дорожки.
             if not self.tilt.can_handle_snow(self._current_snow_type, self._current_snow_depth_mm):
-                logger.warning(
-                    "BULLDOZER: снег %s %.0f мм — тяги не хватит! Попытка с макс. углом.",
+                logger.critical(
+                    "BULLDOZER: снег %s %.0f мм — тяги не хватит даже на макс. "
+                    "угле, отказ от дорожки — RETREAT",
                     self._current_snow_type.value, self._current_snow_depth_mm,
                 )
+                self._completed_lanes += 1
+                self.sm.transition_to(State.RETREAT)
+                return
 
             logger.info(
                 "BULLDOZER: старт | Снег=%s, Угол=%.0f°, Fh=%.1f кгс, "

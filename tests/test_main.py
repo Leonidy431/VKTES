@@ -280,6 +280,19 @@ def test_check_emergency_mav_disconnected_simulate_ignored(ctrl):
     assert ctrl._check_emergency() is False
 
 
+def test_check_emergency_geofence_altitude_exceeded(ctrl):
+    ctrl.mav.drone.alt_m = config.GEOFENCE_MAX_ALTITUDE_M + 5.0
+    result = ctrl._check_emergency()
+    assert result is True
+    assert ctrl.sm.state == State.EMERGENCY
+
+
+def test_check_emergency_geofence_disabled_ignored(ctrl, monkeypatch):
+    monkeypatch.setattr(config, "GEOFENCE_ENABLED", False)
+    ctrl.mav.drone.alt_m = config.GEOFENCE_MAX_ALTITUDE_M + 5.0
+    assert ctrl._check_emergency() is False
+
+
 # ---------------------------------------------------------------------------
 # _tick dispatch
 # ---------------------------------------------------------------------------
@@ -397,6 +410,33 @@ def test_tick_survey_hover_blow_recommendation_generates_hover_plan(ctrl, monkey
     assert ctrl.sm.state == State.TRANSIT
 
 
+def test_tick_survey_low_confidence_downgrades_hover_blow_to_bulldozer(ctrl, monkeypatch):
+    from blueos.thermal_analyzer import ThermalRegion
+
+    force_state(ctrl, State.SURVEY)
+    set_time_in_state(ctrl, 3.0)
+    ctrl.perception._roof = RoofBoundary(vertices=SQUARE)
+
+    low_confidence_region = ThermalRegion(
+        label="r", center_x=0, center_y=0, area_m2=1.0,
+        mean_temp_c=-8.0, std_temp_c=1.0, confidence=0.2,
+    )
+    fake_assessment = SnowAssessment(
+        dominant_type=SnowType.POWDER,
+        mean_depth_mm=50.0,
+        mean_density_kg_m3=100.0,
+        coverage_percent=100.0,
+        regions=[low_confidence_region],
+        hidden_obstacles=[],
+        recommended_mode="HOVER_BLOW",
+        recommended_tilt_deg=0.0,
+    )
+    monkeypatch.setattr(ctrl.thermal, "process_frame", lambda **kw: fake_assessment)
+    ctrl._tick_survey()
+    assert ctrl._recommended_mode == "BULLDOZER"
+    assert ctrl.hover_blow.plan is None
+
+
 def test_tick_survey_appends_hidden_obstacles(ctrl, monkeypatch):
     from blueos.thermal_analyzer import HiddenObstacle
 
@@ -495,11 +535,14 @@ def test_tick_bulldozer_init_phase_easy_snow(ctrl):
     assert ctrl.burst.mode == BurstMode.RAMP
 
 
-def test_tick_bulldozer_init_phase_impossible_snow_warns(ctrl):
+def test_tick_bulldozer_init_phase_impossible_snow_aborts_to_retreat(ctrl):
     force_state(ctrl, State.BULLDOZER)
     ctrl._current_snow_type = SnowType.ICE
     ctrl._current_snow_depth_mm = 900.0
-    ctrl._tick_bulldozer()  # Should not raise, logs a warning
+    before = ctrl._completed_lanes
+    ctrl._tick_bulldozer()
+    assert ctrl.sm.state == State.RETREAT
+    assert ctrl._completed_lanes == before + 1
 
 
 def test_tick_bulldozer_active_phase_updates_tilt_and_throttle(ctrl):
